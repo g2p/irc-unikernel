@@ -30,9 +30,20 @@ module Client (T: TIME) (C: CONSOLE) (STACK: STACKV4) (RES: Resolver_lwt.S) (CON
         |`Ok flow -> Lwt.return flow
       let close_socket = STACK.TCPV4.close
 
-      let read socket buf off len = Lwt.fail NotImplemented
-      (* read is hard, because we might get more data than ocaml-irc-client has
+      let read socket buf off len =
+      (* read is tricky, because we might get more data than ocaml-irc-client has
        * room for in its read buffer *)
+        assert%lwt (off == 0) >>
+        assert%lwt (len == Bytes.length buf) >>
+        STACK.TCPV4.read socket >>=
+        function
+           `Eof -> Lwt.return 0
+          |`Error _ -> Lwt.fail ConnectionFailure
+          |`Ok buf1 -> let len1 = Cstruct.len buf1 in
+            assert%lwt (len1 <= len) >> (* XXX DOS *)
+            begin Cstruct.blit_to_bytes buf1 0 buf 0 len1;
+            Lwt.return len1 end
+
       let write socket buf off len =
         assert%lwt (off == 0) >>
         assert%lwt (len == String.length buf) >>
