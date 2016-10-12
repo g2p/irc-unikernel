@@ -8,7 +8,10 @@ exception ConnectionFailure
 exception NotImplemented
 
 module Client (T: TIME) (C: CONSOLE) (STACK: STACKV4) (RES: Resolver_lwt.S) (CON: Conduit_mirage.S) = struct
+  module Resolver = Dns_resolver_mirage.Make(OS.Time)(STACK)
+
   let start _time c stack res (ctx:CON.t) =
+    let resolver = Resolver.create stack in
 
     let module Irc_io = struct
       type 'a t = 'a Lwt.t
@@ -30,7 +33,12 @@ module Client (T: TIME) (C: CONSOLE) (STACK: STACKV4) (RES: Resolver_lwt.S) (CON
       let read socket buf off len = Lwt.fail NotImplemented
       let write socket buf off len = Lwt.fail NotImplemented
 
-      let gethostbyname name = Lwt.fail NotImplemented
+      let gethostbyname name =
+        Resolver.gethostbyname resolver name >>=
+        Lwt_list.filter_map_s
+          (function
+            Ipaddr.V4 ip -> return (Some ip) | Ipaddr.V6 ip -> return None)
+
     end in
     let module Irc = Irc_client.Make(Irc_io) in
     Lwt.return ()
