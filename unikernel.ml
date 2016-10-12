@@ -1,6 +1,4 @@
-open Lwt.Infix
 open V1_LWT
-open Printf
 
 let ns = "8.8.8.8"
 
@@ -10,7 +8,7 @@ exception NotImplemented
 module Client (T: TIME) (C: CONSOLE) (STACK: STACKV4) (RES: Resolver_lwt.S) (CON: Conduit_mirage.S) = struct
   module Resolver = Dns_resolver_mirage.Make(OS.Time)(STACK)
 
-  let start _time c stack res (ctx:CON.t) =
+  let start _time _ stack _ _ =
     let resolver = Resolver.create stack in
 
     let module Irc_io = struct
@@ -26,7 +24,7 @@ module Client (T: TIME) (C: CONSOLE) (STACK: STACKV4) (RES: Resolver_lwt.S) (CON
         match%lwt STACK.TCPV4.create_connection (STACK.tcpv4 stack) (addr, port) with
         |`Error `Refused -> Lwt.fail ConnectionFailure
         |`Error `Timeout -> Lwt.fail ConnectionFailure
-        |`Error `Unknown st -> Lwt.fail ConnectionFailure
+        |`Error `Unknown _ -> Lwt.fail ConnectionFailure
         |`Ok flow -> Lwt.return flow
       let close_socket = STACK.TCPV4.close
 
@@ -50,14 +48,14 @@ module Client (T: TIME) (C: CONSOLE) (STACK: STACKV4) (RES: Resolver_lwt.S) (CON
         STACK.TCPV4.write socket (Cstruct.of_string buf) >>=
         function
            `Eof -> Lwt.return 0
-          |`Error err -> Lwt.fail ConnectionFailure
+          |`Error _ -> Lwt.fail ConnectionFailure
           |`Ok () -> Lwt.return len
 
       let gethostbyname name =
         Resolver.gethostbyname resolver name >>=
         Lwt_list.filter_map_s
           (function
-            Ipaddr.V4 ip -> return (Some ip) | Ipaddr.V6 ip -> return None)
+            Ipaddr.V4 ip -> return (Some ip) | Ipaddr.V6 _ -> return None)
 
     end in
     let module Irc = Irc_client.Make(Irc_io) in
