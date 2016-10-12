@@ -1,0 +1,17 @@
+/.config.ml.swp
+/.unikernel.ml.swp
+/Makefile
+/Makefile.ukvm
+/_build-ukvm/
+/_build/
+/irc.xe
+/irc.xl
+/irc.xl.in
+/irc_libvirt.xml
+/key_gen.ml
+/log
+/main.ml
+/mir-irc.ukvm
+/ukvm-bin
+/main.native
+/mir-irc
