@@ -2,7 +2,12 @@ open Lwt.Infix
 open V1_LWT
 open Printf
 
-let ns = "8.8.8.8"
+let irc_server = "chat.freenode.net"
+let irc_port = 6667
+let nick = "milog"
+let username = nick
+let realname = nick
+let channel = "#mirage"
 
 exception ConnectionFailure
 
@@ -77,5 +82,17 @@ module Client (T: TIME) (C: CONSOLE) (STACK: STACKV4) (RES: Resolver_lwt.S) (CON
 
     end in
     let module Irc = Irc_client.Make(Irc_io) in
-    Lwt.return ()
+    let on_message connection result =
+      match result with
+            | Result.Ok msg ->
+                Lwt.return (C.log con (sprintf "Got message: %s" (Irc_message.to_string msg)))
+            | Result.Error e ->
+                Lwt.return (C.log con e)
+    in
+    Irc.connect_by_name ~server:irc_server ~port:irc_port ~nick ~username ~realname () >>=
+      function
+        |None -> Lwt.fail ConnectionFailure
+        |Some connection ->
+            Irc.send_join ~connection ~channel >>
+            Irc.listen ~connection ~callback:on_message
 end
