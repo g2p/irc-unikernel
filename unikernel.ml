@@ -4,9 +4,6 @@ open Printf
 
 let irc_server = "chat.freenode.net"
 let irc_port = 6667
-let nick = "milog"
-let username = nick
-let realname = nick
 let channel = "#mirage"
 
 exception ConnectionFailure
@@ -88,7 +85,9 @@ module Client (C: CONSOLE) (STACK: STACKV4) = struct
             | Result.Error e ->
                 Lwt.return (C.log con e)
     in
-    Irc.connect_by_name ~server:irc_server ~port:irc_port ~nick ~username ~realname () >>=
+    let nick = Key_gen.irc_nick () in
+    Irc.connect_by_name ~server:irc_server ~port:irc_port
+    ~nick ~username:nick ~realname:nick () >>=
       function
         |None -> Lwt.fail ConnectionFailure
         |Some connection ->
