@@ -85,7 +85,7 @@ module Client (T: TIME) (C: CONSOLE) (STACK: STACKV4) (RES: Resolver_lwt.S) (CON
     let on_message connection result =
       match result with
             | Result.Ok msg ->
-                Lwt.return (C.log con (sprintf "Got message: %s" (Irc_message.to_string msg)))
+                Lwt.return (C.log con (Irc_message.to_string msg))
             | Result.Error e ->
                 Lwt.return (C.log con e)
     in
