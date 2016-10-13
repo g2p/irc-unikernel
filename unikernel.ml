@@ -44,7 +44,7 @@ module Client (T: TIME) (C: CONSOLE) (STACK: STACKV4) (RES: Resolver_lwt.S) (CON
         assert%lwt (len == Bytes.length buf) >>
         match Hashtbl.find_all read_remainder socket with
         |(buf1, off1, len1)::_ ->
-            let () = C.log con (sprintf "rem lengths %d %d" len1 len) in
+            (*let () = C.log con (sprintf "rem lengths %d %d" len1 len) in*)
             let len2 = min len len1 in
             let () = Cstruct.blit_to_bytes buf1 off1 buf off len2 in
             let () = if len2 == len1
@@ -57,7 +57,7 @@ module Client (T: TIME) (C: CONSOLE) (STACK: STACKV4) (RES: Resolver_lwt.S) (CON
              `Eof -> Lwt.return 0
             |`Error _ -> Lwt.fail ConnectionFailure
             |`Ok buf1 -> let len1 = Cstruct.len buf1 in
-              let () = C.log con (sprintf "lengths %d %d" len1 len) in
+              (*let () = C.log con (sprintf "lengths %d %d" len1 len) in*)
               let len2 = min len len1 in
               let () = Cstruct.blit_to_bytes buf1 0 buf off len2 in
               let () = if len2 < len1
