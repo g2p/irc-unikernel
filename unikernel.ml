@@ -1,15 +1,19 @@
+open Lwt.Infix
 open V1_LWT
+open Printf
 
 let ns = "8.8.8.8"
 
 exception ConnectionFailure
-exception NotImplemented
 
 module Client (T: TIME) (C: CONSOLE) (STACK: STACKV4) (RES: Resolver_lwt.S) (CON: Conduit_mirage.S) = struct
   module Resolver = Dns_resolver_mirage.Make(OS.Time)(STACK)
 
-  let start _time _ stack _ _ =
+  let start _time con stack _ _ =
     let resolver = Resolver.create stack in
+
+    (* XXX Use Ephemeron.K1.Make *)
+    let read_remainder = Hashtbl.create 1 in
 
     let module Irc_io = struct
       type 'a t = 'a Lwt.t
@@ -33,14 +37,28 @@ module Client (T: TIME) (C: CONSOLE) (STACK: STACKV4) (RES: Resolver_lwt.S) (CON
        * room for in its read buffer *)
         assert%lwt (off == 0) >>
         assert%lwt (len == Bytes.length buf) >>
-        STACK.TCPV4.read socket >>=
-        function
-           `Eof -> Lwt.return 0
-          |`Error _ -> Lwt.fail ConnectionFailure
-          |`Ok buf1 -> let len1 = Cstruct.len buf1 in
-            assert%lwt (len1 <= len) >> (* XXX DOS *)
-            begin Cstruct.blit_to_bytes buf1 0 buf 0 len1;
-            Lwt.return len1 end
+        match Hashtbl.find_all read_remainder socket with
+        |(buf1, off1, len1)::_ ->
+            let () = C.log con (sprintf "rem lengths %d %d" len1 len) in
+            let len2 = min len len1 in
+            let () = Cstruct.blit_to_bytes buf1 off1 buf off len2 in
+            let () = if len2 == len1
+            then Hashtbl.remove read_remainder socket
+            else Hashtbl.replace read_remainder socket (buf1, off1+len2, len1-len2) in
+            Lwt.return len2
+        |[] -> begin
+          STACK.TCPV4.read socket >>=
+          function
+             `Eof -> Lwt.return 0
+            |`Error _ -> Lwt.fail ConnectionFailure
+            |`Ok buf1 -> let len1 = Cstruct.len buf1 in
+              let () = C.log con (sprintf "lengths %d %d" len1 len) in
+              let len2 = min len len1 in
+              let () = Cstruct.blit_to_bytes buf1 0 buf off len2 in
+              let () = if len2 < len1
+              then Hashtbl.add read_remainder socket (buf1, len2, len1-len2) in
+              Lwt.return len2
+        end
 
       let write socket buf off len =
         assert%lwt (off == 0) >>
