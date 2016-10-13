@@ -11,10 +11,10 @@ let channel = "#mirage"
 
 exception ConnectionFailure
 
-module Client (T: TIME) (C: CONSOLE) (STACK: STACKV4) (RES: Resolver_lwt.S) (CON: Conduit_mirage.S) = struct
+module Client (C: CONSOLE) (STACK: STACKV4) = struct
   module Resolver = Dns_resolver_mirage.Make(OS.Time)(STACK)
 
-  let start _time con stack _ _ =
+  let start con stack =
     let resolver = Resolver.create stack in
 
     (* XXX Use Ephemeron.K1.Make *)
@@ -79,7 +79,6 @@ module Client (T: TIME) (C: CONSOLE) (STACK: STACKV4) (RES: Resolver_lwt.S) (CON
         Lwt_list.filter_map_s
           (function
             Ipaddr.V4 ip -> return (Some ip) | Ipaddr.V6 _ -> return None)
-
     end in
     let module Irc = Irc_client.Make(Irc_io) in
     let on_message connection result =
