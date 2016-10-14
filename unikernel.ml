@@ -8,10 +8,10 @@ let channel = "#mirage"
 
 exception ConnectionFailure
 
-module Client (C: CONSOLE) (STACK: STACKV4) = struct
+module Client (C: CONSOLE) (STACK: STACKV4) (F: FS) = struct
   module Resolver = Dns_resolver_mirage.Make(OS.Time)(STACK)
 
-  let start con stack =
+  let start con stack fs () =
     let resolver = Resolver.create stack in
 
     (* XXX Use Ephemeron.K1.Make *)
@@ -86,6 +86,13 @@ module Client (C: CONSOLE) (STACK: STACKV4) = struct
                 Lwt.return (C.log con e)
     in
     let nick = Key_gen.irc_nick () in
+    let open Irmin in
+    let module Fplus = struct
+      include F
+      let string_of_error = (*Git_mirage.IO.error_message*) fun err -> ""
+      let connect () = Lwt.return fs
+    end in
+    let module Git = Git_mirage.FS(Fplus)(Git_mirage.SHA1_slow)(Git.Inflate.None) in
     Irc.connect_by_name ~server:irc_server ~port:irc_port
     ~nick ~username:nick ~realname:nick () >>=
       function
